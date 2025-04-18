@@ -42,30 +42,33 @@ I want to build a gamified goal tracking application inspired by the Solo Leveli
 - Statistics and achievements
 - AI insights and recommendations
 
-## Tech Stack Requirements (Free Tier Options Only)
+## Tech Stack Requirements (Updated for Company Stack)
 
 ### Frontend
-- **Framework**: React with Next.js (free, open-source)
-- **UI Library**: Tailwind CSS with shadcn/ui components (free)
-- **State Management**: React Context API (built into React)
-- **Routing**: Next.js Router (included with Next.js)
+- **Framework**: ReactJS
+- **UI Library**: Tailwind CSS with shadcn/ui components
+- **State Management**: Redux or React Context API
+- **Routing**: React Router
+- **API Communication**: Axios or Fetch API
 
 ### Backend
-- **API Routes**: Next.js API Routes (included with Next.js)
-- **Database**: MongoDB with free Atlas cluster
-- **ORM**: Mongoose (free, open-source)
-- **Authentication**: NextAuth.js (free, open-source)
+- **Framework**: Python FastAPI
+- **Database**: PostgreSQL
+- **ORM**: SQLAlchemy
+- **Authentication**: JWT with FastAPI auth libraries
+- **API Documentation**: Swagger/OpenAPI (included with FastAPI)
 
 ### AI Integration
 - **LLM API**: OpenAI API (limited free credits) or Hugging Face Inference API (free tier)
 - **Alternative**: Self-hosted open-source models like Ollama (completely free but requires server)
-- **Vector Database**: Pinecone (free tier) or ChromaDB (open-source)
+- **Vector Database**: Pgvector extension for PostgreSQL or standalone Pinecone (free tier)
 - **Embeddings**: OpenAI embeddings API or open-source alternatives
 
 ### Deployment
-- **Hosting**: Vercel (free tier)
-- **Domain**: Initially use Vercel subdomain (free)
-- **Version Control**: GitHub (free for public repositories)
+- **Frontend Hosting**: Netlify, Vercel, or company infrastructure
+- **Backend Hosting**: Company infrastructure, AWS, or other cloud provider
+- **Domain**: Initially use subdomain or company-provided domain
+- **Version Control**: GitHub or company's Git server
 
 ## AI System Architecture & Design
 
@@ -170,154 +173,168 @@ This system provides conversational guidance and motivational support.
 2. For returning users:
    - "Welcome back! It's been 5 days since you last completed a task. Let's start with a quick review of React hooks before continuing with your plan."
 
-## Database Schema
+## Database Schema (PostgreSQL)
 
-### 1. User Model
-```javascript
-{
-  _id: ObjectId,
-  name: String,
-  email: String,
-  passwordHash: String,
-  joinDate: Date,
-  currentXP: Number,
-  currentLevel: Number,
-  settings: {
-    availableTimePerDay: Number, // in minutes
-    notificationPreferences: Object,
-    // other user preferences
-  },
-  domains: [
-    {
-      name: String, // e.g., "React Development"
-      currentRank: String, // E, D, C, B, A, S
-      rankProgress: Number, // percentage to next rank
-      expertise: Object // domain-specific knowledge/skills
-    }
-  ]
-}
-```
-
-### 2. Goal Model
-```javascript
-{
-  _id: ObjectId,
-  userId: ObjectId,
-  title: String,
-  description: String,
-  domain: String, // e.g., "React Development"
-  createdAt: Date,
-  deadline: Date,
-  status: String, // "active", "completed", "failed"
-  aiGeneratedPlan: {
-    initialAssessment: Object, // Initial skill assessment
-    initialRank: String, // Starting rank
-    targetRank: String, // Target rank
-    milestones: [
-      {
-        title: String,
-        description: String,
-        tasks: [ObjectId], // References to Task model
-        status: String
-      }
-    ],
-    adaptations: [
-      {
-        date: Date,
-        reason: String,
-        changes: Object // Record of plan adjustments
-      }
-    ]
-  }
-}
-```
-
-### 3. Task Model
-```javascript
-{
-  _id: ObjectId,
-  userId: ObjectId,
-  goalId: ObjectId,
-  milestoneId: ObjectId,
-  title: String,
-  description: String,
-  type: String, // "learning", "practice", "project", "assessment"
-  difficulty: Number, // 1-10 scale
-  estimatedTimeMinutes: Number,
-  xpReward: Number,
-  penaltyForMissing: Number,
-  dueDate: Date,
-  status: String, // "pending", "completed", "failed", "in_progress"
-  completedAt: Date,
-  resources: [
-    {
-      title: String,
-      url: String,
-      type: String // "article", "video", "exercise", etc.
-    }
-  ],
-  feedback: {
-    userRating: Number, // 1-5
-    userComments: String,
-    difficulty: Number, // 1-5 user-reported difficulty
-    timeSpentMinutes: Number
-  }
-}
-```
-
-### 4. Rank System Model
-```javascript
-{
-  _id: ObjectId,
-  domain: String, // e.g., "React Development"
-  ranks: [
-    {
-      name: String, // "E", "D", "C", "B", "A", "S"
-      description: String,
-      requirements: Object, // Skills needed for this rank
-      minimumXP: Number, // XP threshold for this rank
-      challenges: [
-        {
-          title: String, // "Boss battle" or milestone challenge
-          description: String,
-          criteria: Object // Pass/fail criteria
+### 1. Users Table
+```sql
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    join_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    current_xp INTEGER NOT NULL DEFAULT 0,
+    current_level INTEGER NOT NULL DEFAULT 1,
+    settings JSONB NOT NULL DEFAULT '{
+        "availableTimePerDay": 60,
+        "notificationPreferences": {
+            "email": true,
+            "push": false
         }
-      ]
-    }
-  ]
-}
+    }'
+);
 ```
 
-### 5. AI Interaction Model
-```javascript
-{
-  _id: ObjectId,
-  userId: ObjectId,
-  goalId: ObjectId,
-  timestamp: Date,
-  type: String, // "assessment", "plan_creation", "feedback", "coaching"
-  userInput: String,
-  aiResponse: String,
-  context: Object, // Relevant context for the interaction
-  feedbackRating: Number // User rating of AI response
-}
+### 2. Domains Table
+```sql
+CREATE TABLE domains (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT
+);
+```
+
+### 3. User_Domains Table
+```sql
+CREATE TABLE user_domains (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    domain_id INTEGER REFERENCES domains(id) ON DELETE CASCADE,
+    current_rank VARCHAR(1) NOT NULL DEFAULT 'E',
+    rank_progress FLOAT NOT NULL DEFAULT 0,
+    expertise JSONB,
+    UNIQUE(user_id, domain_id)
+);
+```
+
+### 4. Goals Table
+```sql
+CREATE TABLE goals (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    domain_id INTEGER REFERENCES domains(id) ON DELETE SET NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deadline TIMESTAMP,
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
+    ai_generated_plan JSONB
+);
+```
+
+### 5. Milestones Table
+```sql
+CREATE TABLE milestones (
+    id SERIAL PRIMARY KEY,
+    goal_id INTEGER REFERENCES goals(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    sequence_order INTEGER NOT NULL
+);
+```
+
+### 6. Tasks Table
+```sql
+CREATE TABLE tasks (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    goal_id INTEGER REFERENCES goals(id) ON DELETE CASCADE,
+    milestone_id INTEGER REFERENCES milestones(id) ON DELETE SET NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    type VARCHAR(50) NOT NULL,
+    difficulty INTEGER NOT NULL CHECK (difficulty BETWEEN 1 AND 10),
+    estimated_time_minutes INTEGER NOT NULL,
+    xp_reward INTEGER NOT NULL,
+    penalty_for_missing INTEGER NOT NULL DEFAULT 0,
+    due_date TIMESTAMP,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    completed_at TIMESTAMP,
+    resources JSONB,
+    feedback JSONB
+);
+```
+
+### 7. Rank_Systems Table
+```sql
+CREATE TABLE rank_systems (
+    id SERIAL PRIMARY KEY,
+    domain_id INTEGER REFERENCES domains(id) ON DELETE CASCADE,
+    ranks JSONB NOT NULL
+);
+```
+
+### 8. AI_Interactions Table
+```sql
+CREATE TABLE ai_interactions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL,
+    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    type VARCHAR(50) NOT NULL,
+    user_input TEXT,
+    ai_response TEXT,
+    context JSONB,
+    feedback_rating INTEGER
+);
+```
+
+### 9. Task_Activities Table
+```sql
+CREATE TABLE task_activities (
+    id SERIAL PRIMARY KEY,
+    task_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    activity_type VARCHAR(50) NOT NULL,
+    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    details JSONB
+);
+```
+
+### 10. Vector Table (using pgvector extension)
+```sql
+-- Install pgvector extension
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Create table for embeddings
+CREATE TABLE embeddings (
+    id SERIAL PRIMARY KEY,
+    content_type VARCHAR(50) NOT NULL,
+    content_id INTEGER NOT NULL,
+    embedding vector(1536),  -- Adjust dimension based on embedding model
+    metadata JSONB
+);
+
+-- Create index for vector similarity search
+CREATE INDEX embedding_idx ON embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 ```
 
 ## Development Approach (Step by Step)
 
 ### Phase 1: Project Setup and Foundation
-1. Initialize Next.js project with TypeScript
-2. Set up Tailwind CSS and shadcn/ui
-3. Create basic folder structure
-4. Set up MongoDB connection
-5. Create essential database models
-6. Implement NextAuth.js authentication
-7. Set up AI service integration (API connections)
+1. Set up React frontend project with create-react-app or Vite
+2. Configure Tailwind CSS and shadcn/ui components
+3. Set up FastAPI backend project structure
+4. Configure PostgreSQL database and connection
+5. Implement SQLAlchemy models based on schema
+6. Set up JWT authentication in FastAPI
+7. Create basic API endpoints and frontend routing
 
 ### Phase 2: AI System Development
 1. Design and implement the goal analysis system
    - Create prompt templates
-   - Implement parsing logic for AI responses
+   - Implement parsing logic for AI responses 
    - Develop goal structuring algorithms
 2. Build the rank assessment system
    - Create assessment questionnaires
@@ -373,7 +390,7 @@ This system provides conversational guidance and motivational support.
 2. Implement dark/light mode
 3. Add animations and transitions
 4. Optimize performance
-5. Deploy to Vercel
+5. Deploy frontend and backend to production
 6. Set up monitoring and analytics
 
 ## AI Implementation Details
@@ -420,346 +437,454 @@ Format your response as a structured JSON object following this schema:
 {schema details}
 ```
 
-### 2. AI Response Processing
+### 2. FastAPI AI Integration
 
-Implement robust parsing and validation of AI responses:
+Implement a robust AI service in FastAPI:
 
-```typescript
-// Example processing function
-async function processAIGoalAnalysis(userGoal: string, userInfo: UserInfo): Promise<StructuredPlan> {
-  // Prepare the prompt with user information
-  const prompt = prepareGoalAnalysisPrompt(userGoal, userInfo);
-  
-  // Get response from AI service
-  const aiResponse = await getAIResponse(prompt);
-  
-  // Parse and validate the response
-  let structuredPlan: StructuredPlan;
-  try {
-    structuredPlan = JSON.parse(aiResponse);
-    // Validate against schema
-    validatePlanSchema(structuredPlan);
-    
-    // Apply business logic to ensure the plan is reasonable
-    structuredPlan = adjustPlanTimeEstimates(structuredPlan, userInfo.availableTime);
-    structuredPlan = validateDifficultyLevels(structuredPlan);
-    
-    return structuredPlan;
-  } catch (error) {
-    // Handle parsing errors or invalid AI responses
-    logger.error("Failed to process AI response", error);
-    return generateFallbackPlan(userGoal, userInfo);
-  }
-}
+```python
+# ai_service.py
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+import openai
+from typing import Dict, List, Optional
+import json
+import os
+
+router = APIRouter()
+
+class GoalAnalysisRequest(BaseModel):
+    user_goal: str
+    current_level: Optional[str] = None
+    available_time_per_day: int
+    domain: str
+
+class AssessmentRequest(BaseModel):
+    domain: str
+    user_responses: Dict[str, str]
+
+class StructuredPlan(BaseModel):
+    milestones: List[Dict]
+    current_rank: str
+    target_rank: str
+    progression_path: Dict
+    estimated_completion_time_days: int
+
+async def get_openai_client():
+    client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    return client
+
+@router.post("/analyze-goal", response_model=StructuredPlan)
+async def analyze_goal(
+    request: GoalAnalysisRequest,
+    openai_client = Depends(get_openai_client)
+):
+    try:
+        # Prepare prompt
+        prompt = f"""
+        You are an AI assistant for a Solo Leveling inspired goal-tracking app. Your task is to analyze the user's goal and create a structured plan.
+
+        User Goal: "{request.user_goal}"
+        User's Current Level: "{request.current_level or 'Not specified'}"
+        Available Time: {request.available_time_per_day} minutes per day
+        Domain: {request.domain}
+
+        Please create:
+        1. A structured breakdown of this goal into 3-5 milestones
+        2. For each milestone, create 3-7 specific, actionable tasks
+        3. Estimate the time required for each task (in minutes)
+        4. Assign an appropriate difficulty level (1-10) for each task
+        5. For the domain of this goal, assess what Hunter Rank (E through S) the user currently has based on their reported knowledge
+        6. Create a clear progression path showing what they need to achieve to advance to each higher rank
+
+        Format your response as a structured JSON object with the following fields:
+        - milestones: array of milestone objects
+        - current_rank: string (E through S)
+        - target_rank: string (E through S)
+        - progression_path: object with rank progression details
+        - estimated_completion_time_days: integer
+        """
+        
+        # Get response from OpenAI
+        response = await openai_client.chat.completions.create(
+            model="gpt-4-turbo",  # Use appropriate model
+            messages=[
+                {"role": "system", "content": "You are an AI goal structuring assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=2000,
+            response_format={"type": "json_object"}
+        )
+        
+        # Parse and validate response
+        result = json.loads(response.choices[0].message.content)
+        
+        # Process and validate the response here
+        structured_plan = StructuredPlan(**result)
+        return structured_plan
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI service error: {str(e)}")
 ```
 
-### 3. AI Service Integration
+### 3. React Frontend AI Integration
 
-Create a flexible AI service layer that can work with different providers:
+Create a service for interacting with the AI backend:
 
 ```typescript
-// AI service abstraction
-class AIService {
-  private provider: AIProvider;
-  
-  constructor(config: AIConfig) {
-    // Initialize based on config (OpenAI, HuggingFace, etc.)
-    this.provider = this.selectProvider(config);
-  }
-  
-  async getCompletion(prompt: string, options: CompletionOptions): Promise<string> {
+// src/services/aiService.ts
+import axios from 'axios';
+import { GoalAnalysisRequest, StructuredPlan, AssessmentRequest, SkillAssessment } from '../types';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
+export const aiService = {
+  async analyzeGoal(request: GoalAnalysisRequest): Promise<StructuredPlan> {
     try {
-      return await this.provider.getCompletion(prompt, options);
+      const response = await axios.post(`${API_BASE_URL}/api/ai/analyze-goal`, request, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      return response.data;
     } catch (error) {
-      // Handle API errors, rate limits, etc.
-      logger.error("AI provider error", error);
-      if (this.hasBackupProvider()) {
-        // Fallback to backup provider
-        return await this.backupProvider.getCompletion(prompt, options);
-      }
-      throw new AIServiceError("Failed to get AI completion", error);
+      console.error('Error analyzing goal:', error);
+      throw new Error('Failed to analyze goal. Please try again.');
     }
-  }
+  },
   
-  // Additional methods for different AI tasks
-  async assessUserSkill(domain: string, userResponses: AssessmentResponse[]): Promise<SkillAssessment> {
-    const prompt = this.prepareAssessmentPrompt(domain, userResponses);
-    const response = await this.getCompletion(prompt, { 
-      temperature: 0.3, // Lower temperature for more consistent assessments
-      maxTokens: 1000
-    });
-    return this.parseAssessmentResponse(response);
-  }
+  async assessSkill(request: AssessmentRequest): Promise<SkillAssessment> {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/ai/assess-skill`, request, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error assessing skill:', error);
+      throw new Error('Failed to assess skill. Please try again.');
+    }
+  },
   
-  // More specialized methods...
-}
+  // Additional AI service methods...
+};
 ```
 
 ### 4. Domain-Specific Knowledge Base
 
-Create structured knowledge bases for popular goal domains:
+Create structured knowledge bases in Python:
 
-```typescript
-// Example knowledge base for React development
-const reactDevelopmentKnowledge = {
-  domain: "React Development",
-  ranks: [
-    {
-      name: "E",
-      description: "Complete beginner with basic HTML/CSS knowledge",
-      skills: [
-        "Basic HTML understanding",
-        "CSS familiarity",
-        "JavaScript fundamentals"
-      ],
-      assessmentQuestions: [
-        "Have you used HTML and CSS before?",
-        "Can you explain what JavaScript is?",
-        "Have you ever built a website?"
-      ]
-    },
-    {
-      name: "D",
-      description: "Beginner React developer with basic concepts",
-      skills: [
-        "React component basics",
-        "JSX syntax",
-        "Props understanding",
-        "Basic hooks (useState)"
-      ],
-      assessmentQuestions: [
-        "Can you explain what a React component is?",
-        "Have you used the useState hook?",
-        "Can you describe the component lifecycle?"
-      ],
-      learningPath: [
-        {
-          topic: "React Fundamentals",
-          resources: [
-            { type: "tutorial", title: "Intro to React", url: "..." },
-            { type: "exercise", title: "Build a simple counter", description: "..." }
-          ]
-        },
-        // More learning paths...
-      ]
-    },
-    // More ranks with progressively advanced skills...
-  ]
-};
+```python
+# knowledge_base.py
+from typing import List, Dict, Any
+
+class DomainKnowledgeBase:
+    def __init__(self):
+        self.domains = {
+            "React Development": self._react_development_knowledge(),
+            "Python Programming": self._python_programming_knowledge(),
+            "Fitness": self._fitness_knowledge(),
+            # Additional domains...
+        }
+    
+    def get_domain_knowledge(self, domain_name: str) -> Dict[str, Any]:
+        """Get knowledge base for a specific domain"""
+        return self.domains.get(domain_name, {})
+    
+    def get_assessment_questions(self, domain_name: str, rank: str = None) -> List[Dict[str, Any]]:
+        """Get assessment questions for a domain and optional rank"""
+        domain = self.domains.get(domain_name, {})
+        if not domain:
+            return []
+        
+        if rank:
+            # Get questions specific to a rank
+            for rank_info in domain.get("ranks", []):
+                if rank_info["name"] == rank:
+                    return rank_info.get("assessmentQuestions", [])
+            return []
+        else:
+            # Get all questions for the domain
+            questions = []
+            for rank_info in domain.get("ranks", []):
+                questions.extend(rank_info.get("assessmentQuestions", []))
+            return questions
+    
+    def _react_development_knowledge(self) -> Dict[str, Any]:
+        """Knowledge base for React Development"""
+        return {
+            "domain": "React Development",
+            "ranks": [
+                {
+                    "name": "E",
+                    "description": "Complete beginner with basic HTML/CSS knowledge",
+                    "skills": [
+                        "Basic HTML understanding",
+                        "CSS familiarity",
+                        "JavaScript fundamentals"
+                    ],
+                    "assessmentQuestions": [
+                        {
+                            "question": "Have you used HTML and CSS before?",
+                            "type": "multiple_choice",
+                            "options": ["Never", "A little", "Regularly", "Expert level"]
+                        },
+                        # More questions...
+                    ]
+                },
+                # More ranks...
+            ]
+        }
+    
+    # Additional domain knowledge methods...
 ```
 
 ### 5. Progress Tracking and Adaptation
 
-Implement logic to track progress and adapt plans:
+Implement progress tracking in FastAPI:
 
-```typescript
-// Example adaptation function
-function adaptPlanBasedOnProgress(
-  originalPlan: StructuredPlan,
-  progressData: UserProgressData
-): StructuredPlan {
-  const adaptedPlan = { ...originalPlan };
-  
-  // Check completion rate
-  if (progressData.completionRate < 0.6) {
-    // User is struggling, adjust difficulty
-    adaptedPlan.tasks = adaptedPlan.tasks.map(task => ({
-      ...task,
-      difficulty: Math.max(1, task.difficulty - 1),
-      estimatedTimeMinutes: Math.floor(task.estimatedTimeMinutes * 1.2) // Give more time
-    }));
-  } else if (progressData.completionRate > 0.9 && progressData.averageTimeRatio < 0.8) {
-    // User is finding tasks too easy, increase difficulty
-    adaptedPlan.tasks = adaptedPlan.tasks.map(task => ({
-      ...task,
-      difficulty: Math.min(10, task.difficulty + 1)
-    }));
-  }
-  
-  // Check for knowledge gaps
-  if (progressData.strugglingAreas.length > 0) {
-    // Add remedial tasks for struggling areas
-    const remedialTasks = createRemedialTasks(progressData.strugglingAreas);
-    adaptedPlan.tasks = [...remedialTasks, ...adaptedPlan.tasks];
-  }
-  
-  return adaptedPlan;
-}
+```python
+# progress_service.py
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from typing import List, Dict, Any
+from pydantic import BaseModel
+
+from database import get_db
+from models import User, Goal, Task, TaskActivity
+from ai_service import get_ai_client
+
+router = APIRouter()
+
+class ProgressData(BaseModel):
+    user_id: int
+    goal_id: int
+    completion_rate: float
+    average_time_ratio: float
+    struggling_areas: List[str]
+
+class AdaptedPlan(BaseModel):
+    tasks: List[Dict[str, Any]]
+    adaptations: List[Dict[str, Any]]
+
+@router.post("/adapt-plan", response_model=AdaptedPlan)
+async def adapt_plan(
+    progress_data: ProgressData,
+    db: Session = Depends(get_db),
+    ai_client = Depends(get_ai_client)
+):
+    # Get the user's current plan
+    goal = db.query(Goal).filter(Goal.id == progress_data.goal_id).first()
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    # Extract original plan
+    original_plan = goal.ai_generated_plan
+    
+    # Apply adaptation logic
+    adapted_plan = adapt_plan_based_on_progress(original_plan, progress_data)
+    
+    # Update the goal with the adapted plan
+    goal.ai_generated_plan = adapted_plan
+    db.commit()
+    
+    return AdaptedPlan(
+        tasks=adapted_plan.get("tasks", []),
+        adaptations=adapted_plan.get("adaptations", [])
+    )
+
+def adapt_plan_based_on_progress(
+    original_plan: Dict[str, Any],
+    progress_data: ProgressData
+) -> Dict[str, Any]:
+    """Adapt the plan based on user progress data"""
+    adapted_plan = original_plan.copy()
+    
+    # Record this adaptation
+    if "adaptations" not in adapted_plan:
+        adapted_plan["adaptations"] = []
+    
+    adaptation = {
+        "timestamp": datetime.now().isoformat(),
+        "reason": "Progress update",
+        "changes": []
+    }
+    
+    # Check completion rate
+    if progress_data.completion_rate < 0.6:
+        # User is struggling, adjust difficulty
+        for task in adapted_plan.get("tasks", []):
+            if task.get("status") != "completed":
+                original_difficulty = task.get("difficulty", 5)
+                task["difficulty"] = max(1, original_difficulty - 1)
+                task["estimatedTimeMinutes"] = int(task.get("estimatedTimeMinutes", 60) * 1.2)
+                
+                adaptation["changes"].append({
+                    "task_id": task.get("id"),
+                    "field": "difficulty",
+                    "old_value": original_difficulty,
+                    "new_value": task["difficulty"],
+                    "reason": "User struggling with pace"
+                })
+    
+    # Additional adaptation logic...
+    
+    adapted_plan["adaptations"].append(adaptation)
+    return adapted_plan
 ```
 
-## UI/UX Requirements
+## UI/UX Implementation
 
 ### 1. Goal Creation and Assessment Flow
 
-Design a conversational UI for goal creation and assessment:
+React components for goal creation:
 
-1. **Initial Goal Input**
-   - Simple input field for brief goal description
-   - AI processes this and asks clarifying questions
+```jsx
+// src/components/GoalCreation/GoalForm.jsx
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { aiService } from '../../services/aiService';
+import { goalService } from '../../services/goalService';
 
-2. **Assessment Conversation**
-   - Chat-like interface for skill assessment
-   - Multiple-choice and open-ended questions
-   - Progress indicator for assessment completion
+const GoalForm = () => {
+  const [goal, setGoal] = useState('');
+  const [domain, setDomain] = useState('');
+  const [availableTime, setAvailableTime] = useState(60); // Default 60 minutes per day
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsProcessing(true);
+    setError('');
+    
+    try {
+      // Step 1: Analyze the goal with AI
+      const analysisResult = await aiService.analyzeGoal({
+        user_goal: goal,
+        domain,
+        available_time_per_day: availableTime
+      });
+      
+      // Step 2: Save the goal with the AI-generated plan
+      const savedGoal = await goalService.createGoal({
+        title: goal,
+        domain_id: domain,
+        ai_generated_plan: analysisResult
+      });
+      
+      // Redirect to the assessment page
+      navigate(`/goals/${savedGoal.id}/assessment`);
+    } catch (error) {
+      setError('Failed to process goal. Please try again.');
+      console.error(error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
+  return (
+    <div className="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden md:max-w-2xl p-6">
+      <h2 className="text-2xl font-bold mb-4">Create Your Solo Leveling Goal</h2>
+      
+      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+      
+      <form onSubmit={handleSubmit}>
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="goal">
+            What goal do you want to achieve?
+          </label>
+          <textarea
+            id="goal"
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+            placeholder="e.g., I want to become proficient in React development"
+            rows="3"
+            required
+          />
+        </div>
+        
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="domain">
+            Domain
+          </label>
+          <select
+            id="domain"
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            value={domain}
+            onChange={(e) => setDomain(e.target.value)}
+            required
+          >
+            <option value="">Select a domain</option>
+            <option value="1">React Development</option>
+            <option value="2">Python Programming</option>
+            <option value="3">Fitness</option>
+            <option value="4">Language Learning</option>
+            <option value="5">Other</option>
+          </select>
+        </div>
+        
+        <div className="mb-6">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="availableTime">
+            How much time can you dedicate per day? (minutes)
+          </label>
+          <input
+            id="availableTime"
+            type="number"
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            value={availableTime}
+            onChange={(e) => setAvailableTime(parseInt(e.target.value) || 0)}
+            min="15"
+            max="480"
+            required
+          />
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <button
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+            type="submit"
+            disabled={isProcessing}
+          >
+            {isProcessing ? 'Processing...' : 'Create Goal'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
 
-3. **Plan Review**
-   - Visual timeline of the generated plan
-   - Ability to edit/adjust the plan
-   - Option to accept or request changes
+export default GoalForm;
+```
 
-### 2. Dashboard Design
+### 2. Dashboard Implementation
 
-Create a game-like dashboard that shows:
+React dashboard component:
 
-1. **Hunter Rank Display**
-   - Prominent rank badge (E through S)
-   - Progress bar to next rank
-   - Visual indication of domain specialty
+```jsx
+// src/components/Dashboard/DashboardView.jsx
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { dashboardService } from '../../services/dashboardService';
+import { taskService } from '../../services/taskService';
 
-2. **Daily Tasks**
-   - Clear list of today's tasks
-   - Time estimates and difficulty indicators
-   - Completion checkboxes and rewards display
+import RankBadge from './RankBadge';
+import TaskList from './TaskList';
+import ProgressBar from './ProgressBar';
+import MilestoneTracker from './MilestoneTracker';
 
-3. **Progress Visualization**
-   - XP progress bars
-   - Milestone achievement markers
-   - Streak indicators
-   - "Boss battle" challenges
-
-### 3. AI Coaching Interface
-
-Design an interface for AI coaching interactions:
-
-1. **Chat Interface**
-   - Conversational UI for questions and guidance
-   - Support for rich media responses (charts, links)
-   - Quick action buttons for common requests
-
-2. **Progress Reviews**
-   - Periodic progress summaries
-   - Strength/weakness analyses
-   - Adaptive recommendations
-
-3. **Help and Support**
-   - Contextual help based on current task
-   - Ability to ask for simpler explanations
-   - Alternative approaches for challenging tasks
-
-## Performance and Optimization Considerations
-
-### 1. AI Cost Management
-
-Strategies to manage AI API costs:
-
-1. **Caching Common Responses**
-   - Cache assessment templates
-   - Store common goal structures
-   - Reuse similar plans with adjustments
-
-2. **Query Optimization**
-   - Use precise prompts to minimize token usage
-   - Implement response length controls
-   - Use lower-cost embeddings where appropriate
-
-3. **Hybrid Approaches**
-   - Use templates for common scenarios
-   - Reserve AI for personalization layer
-   - Pre-compute common plan structures
-
-### 2. Database Optimization
-
-Strategies for the free MongoDB tier:
-
-1. **Data Structure Optimization**
-   - Efficient schema design to minimize storage
-   - Index critical query fields
-   - Implement pagination for large datasets
-
-2. **Caching Layer**
-   - Cache frequent queries (user profile, daily tasks)
-   - Implement client-side state management
-   - Use localStorage for non-sensitive data
-
-3. **Batch Operations**
-   - Group database operations where possible
-   - Use bulk updates instead of individual calls
-   - Implement efficient aggregation pipelines
-
-### 3. Application Performance
-
-Strategies for performance optimization:
-
-1. **Frontend Optimization**
-   - Code splitting and lazy loading
-   - Optimized component rendering
-   - Efficient state management
-
-2. **API Efficiency**
-   - Minimize API calls
-   - Implement request batching
-   - Use server-side caching
-
-3. **Resource Loading**
-   - Optimize asset delivery
-   - Implement progressive loading
-   - Prioritize critical rendering paths
-
-## Deployment Strategy
-
-1. **Development Environment**
-   - Local Next.js development server
-   - MongoDB Atlas free tier connection
-   - Environment variables for API keys
-
-2. **Testing**
-   - Unit tests for core functionality
-   - Integration tests for AI interactions
-   - User testing for UI/UX feedback
-
-3. **Deployment**
-   - Deploy to Vercel free tier
-   - Configure MongoDB Atlas connection
-   - Set up environment variables for production
-   - Implement monitoring and error tracking
-
-4. **Scaling Plan**
-   - Identify potential bottlenecks
-   - Plan for database scaling needs
-   - Consider AI cost management strategies
-
-## Next Steps and Future Expansion
-
-1. **Initial Development Focus**
-   - Build the core goal structuring with AI
-   - Implement basic task tracking
-   - Create the gamification foundation
-   - Design the essential UI components
-
-2. **Testing and Refinement**
-   - Test with real users
-   - Gather feedback on AI interactions
-   - Refine prompts and algorithms
-   - Optimize performance
-
-3. **Expansion Path**
-   - Add more domain-specific knowledge
-   - Enhance gamification features
-   - Implement social elements
-   - Develop mobile applications
-
-## Development Process
-
-1. Start by setting up the project structure and authentication
-2. Implement the AI service integration
-3. Build the goal creation and assessment flows
-4. Create the task generation system
-5. Develop the core gamification mechanics
-6. Design and build the UI components
-7. Implement progress tracking and adaptation
-8. Add polish and optimizations
-9. Test thoroughly before launching
-
-The application should start with support for a few well-defined domains (like programming, fitness, language learning) with detailed knowledge bases, then expand to more general goal types over time. This focused approach will allow for more accurate assessments and better task generation while keeping AI costs manageable.
-
-I want to build a Solo Leveling Goal Tracker app. I've created detailed specifications in @solo-leveling-app-spec.md - please help me start implementing this project based on these requirements.
+const DashboardView = () => {
+  const { id: userId } = useParams();
+  const [dashboardData, setDashboardData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const data = await dashboardService.getUserDashboar
