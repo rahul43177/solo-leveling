@@ -42,10 +42,10 @@ I want to build a gamified goal tracking application inspired by the Solo Leveli
 - Statistics and achievements
 - AI insights and recommendations
 
-## Tech Stack Requirements (Updated for Company Stack)
+## Tech Stack Requirements
 
 ### Frontend
-- **Framework**: ReactJS
+- **Framework**: ReactJS with JavaScript
 - **UI Library**: Tailwind CSS with shadcn/ui components
 - **State Management**: Redux or React Context API
 - **Routing**: React Router
