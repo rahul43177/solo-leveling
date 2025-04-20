@@ -2,8 +2,8 @@
 
 ## Phase 1: Project Setup & Database (Foundation)
 - [ ] Create project structure 
-  - [ ] Set up FastAPI project 
-  - [ ] Configure PostgreSQL
+  - [ ] Set up FastAPI project - DONE
+  - [ ] Configure PostgreSQL - DONE 
   - [ ] Set up SQLAlchemy
   - [ ] Create environment variables
   - [ ] Set up Alembic for migrations
