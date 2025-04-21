@@ -4,7 +4,7 @@
 - [ ] Create project structure 
   - [ ] Set up FastAPI project - DONE
   - [ ] Configure PostgreSQL - DONE 
-  - [ ] Set up SQLAlchemy
+  - [ ] Set up SQLAlchemy (install, configure engine, manage sessions)
   - [ ] Create environment variables
   - [ ] Set up Alembic for migrations
 
